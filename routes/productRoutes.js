@@ -1,36 +1,44 @@
 import express from "express";
 import Product from "../models/Product.js";
-import { cloudinary } from "../server.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Listar productos
-router.get("/", async (_req, res) => {
+// 📌 Listar todos los productos
+router.get("/", async (req, res) => {
   try {
-    const items = await Product.find().sort({ createdAt: -1 });
-    res.json(items);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const products = await Product.find().sort({ createdAt: -1 });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener productos" });
   }
 });
 
-// Crear producto (con imagen opcional)
-router.post("/", async (req, res) => {
+// 📌 Crear producto (requiere login)
+router.post("/", authMiddleware, async (req, res) => {
   try {
-    let imageUrl = req.body.image || "";
+    const { name, price, description, image } = req.body;
+    const product = new Product({
+      name,
+      price,
+      description,
+      image,
+      user: req.user.userId
+    });
+    await product.save();
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: "Error al crear producto" });
+  }
+});
 
-    if (req.files?.file) {
-      const upload = await cloudinary.v2.uploader.upload(req.files.file.tempFilePath, {
-        folder: "libremercado"
-      });
-      imageUrl = upload.secure_url;
-    }
-
-    const { name, price, description = "" } = req.body;
-    const created = await Product.create({ name, price, description, image: imageUrl });
-    res.status(201).json(created);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+// 📌 Obtener productos del usuario logueado
+router.get("/mine", authMiddleware, async (req, res) => {
+  try {
+    const products = await Product.find({ user: req.user.userId }).sort({ createdAt: -1 });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener productos del usuario" });
   }
 });
 
