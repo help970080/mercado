@@ -2,33 +2,43 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import fileUpload from "express-fileupload";
+import cloudinary from "cloudinary";
 
-import authRoutes from "./routes/authRoutes.js";
-import cartRoutes from "./routes/cartRoutes.js";
-import listingRoutes from "./routes/listingRoutes.js";
-import membershipRoutes from "./routes/membershipRoutes.js";
-import offerRoutes from "./routes/offerRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
-import questionRoutes from "./routes/questionRoutes.js";
 
 dotenv.config();
+
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL?.split(",") || "*",
+  credentials: false
+}));
 app.use(express.json());
+app.use(fileUpload({ useTempFiles: true, tempFileDir: "/tmp/" }));
 
-app.use("/api/auth", authRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/listings", listingRoutes);
-app.use("/api/membership", membershipRoutes);
-app.use("/api/offers", offerRoutes);
+// Health check
+app.get("/", (_req, res) => res.json({ ok: true, service: "mercadito-backend" }));
+
+// Routes
 app.use("/api/products", productRoutes);
-app.use("/api/questions", questionRoutes);
 
 mongoose.connect(process.env.MONGODB_URI, { dbName: process.env.DB_NAME })
   .then(() => {
     console.log("MongoDB conectado 🚀");
     app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
   })
-  .catch(err => console.error("Error de conexión MongoDB:", err));
+  .catch(err => {
+    console.error("Error de conexión MongoDB:", err);
+    process.exit(1);
+  });
+
+export { cloudinary };
