@@ -1,9 +1,8 @@
-// authRoutes.js
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User from "./User.js";
-import { authMiddleware } from "./authMiddleware.js";
+import User from "../models/User.js";
+import { authMiddleware } from "../authMiddleware.js";
 
 const router = Router();
 
@@ -18,7 +17,6 @@ router.post("/register", async (req, res) => {
 
     const user = new User({ name, email, password });
     await user.save();
-
     return res.json({ ok: true, message: "Usuario creado" });
   } catch (e) {
     console.error(e);

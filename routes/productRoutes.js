@@ -1,32 +1,27 @@
-// productRoutes.js
 import { Router } from "express";
-import Product from "./Product.js";
-import { authMiddleware } from "./authMiddleware.js";
+import Product from "../models/Product.js";
+import { authMiddleware } from "../authMiddleware.js";
 import cloudinary from "cloudinary";
 import fs from "fs";
 
 const router = Router();
 
-// Listar todos
 router.get("/", async (_req, res) => {
   const items = await Product.find().sort({ createdAt: -1 });
   return res.json(items);
 });
 
-// Detalle por id
 router.get("/:id", async (req, res) => {
   const p = await Product.findById(req.params.id);
   if (!p) return res.status(404).json({ error: "Producto no encontrado" });
   return res.json(p);
 });
 
-// Mis productos
 router.get("/mine/list", authMiddleware, async (req, res) => {
   const items = await Product.find({ user: req.user.userId }).sort({ createdAt: -1 });
   return res.json(items);
 });
 
-// Crear (con o sin imagen)
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const { name, price, description, image } = req.body || {};
@@ -35,7 +30,6 @@ router.post("/", authMiddleware, async (req, res) => {
     }
 
     let finalImage = image || "";
-    // Si viene archivo -> Cloudinary
     if (req.files?.file && process.env.CLOUDINARY_CLOUD_NAME) {
       const tmp = req.files.file.tempFilePath;
       const upload = await cloudinary.v2.uploader.upload(tmp, { folder: "libremercado/products" });
@@ -48,7 +42,7 @@ router.post("/", authMiddleware, async (req, res) => {
       price,
       description: description || "",
       image: finalImage || "",
-      user: req.user.userId
+      user: req.user.userId,
     });
 
     return res.status(201).json(newP);
