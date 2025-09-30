@@ -1,44 +1,60 @@
-import express from "express";
-import Product from "../models/Product.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+// productRoutes.js
+import { Router } from "express";
+import Product from "./Product.js";
+import { authMiddleware } from "./authMiddleware.js";
+import cloudinary from "cloudinary";
+import fs from "fs";
 
-const router = express.Router();
+const router = Router();
 
-// 📌 Listar todos los productos
-router.get("/", async (req, res) => {
-  try {
-    const products = await Product.find().sort({ createdAt: -1 });
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener productos" });
-  }
+// Listar todos
+router.get("/", async (_req, res) => {
+  const items = await Product.find().sort({ createdAt: -1 });
+  return res.json(items);
 });
 
-// 📌 Crear producto (requiere login)
+// Detalle por id
+router.get("/:id", async (req, res) => {
+  const p = await Product.findById(req.params.id);
+  if (!p) return res.status(404).json({ error: "Producto no encontrado" });
+  return res.json(p);
+});
+
+// Mis productos
+router.get("/mine/list", authMiddleware, async (req, res) => {
+  const items = await Product.find({ user: req.user.userId }).sort({ createdAt: -1 });
+  return res.json(items);
+});
+
+// Crear (con o sin imagen)
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { name, price, description, image } = req.body;
-    const product = new Product({
+    const { name, price, description, image } = req.body || {};
+    if (!name || price === undefined) {
+      return res.status(400).json({ error: "Faltan campos: name/price" });
+    }
+
+    let finalImage = image || "";
+    // Si viene archivo -> Cloudinary
+    if (req.files?.file && process.env.CLOUDINARY_CLOUD_NAME) {
+      const tmp = req.files.file.tempFilePath;
+      const upload = await cloudinary.v2.uploader.upload(tmp, { folder: "libremercado/products" });
+      finalImage = upload.secure_url;
+      if (tmp && fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    }
+
+    const newP = await Product.create({
       name,
       price,
-      description,
-      image,
+      description: description || "",
+      image: finalImage || "",
       user: req.user.userId
     });
-    await product.save();
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ error: "Error al crear producto" });
-  }
-});
 
-// 📌 Obtener productos del usuario logueado
-router.get("/mine", authMiddleware, async (req, res) => {
-  try {
-    const products = await Product.find({ user: req.user.userId }).sort({ createdAt: -1 });
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener productos del usuario" });
+    return res.status(201).json(newP);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Error al crear producto" });
   }
 });
 
