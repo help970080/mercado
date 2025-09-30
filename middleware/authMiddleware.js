@@ -1,4 +1,3 @@
-// authMiddleware.js
 import jwt from "jsonwebtoken";
 
 export const authMiddleware = (req, res, next) => {
@@ -11,8 +10,8 @@ export const authMiddleware = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = {
       userId: decoded.userId,
-      name: decoded.name,   // 👈 unificado a name
-      email: decoded.email
+      name: decoded.name,
+      email: decoded.email,
     };
     next();
   } catch {

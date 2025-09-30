@@ -1,6 +1,6 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
-import { authMiddleware } from "../authMiddleware.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import cloudinary from "cloudinary";
 import fs from "fs";
 
