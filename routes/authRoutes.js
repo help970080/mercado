@@ -1,32 +1,36 @@
+// routes/authRoutes.js
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
 import User from "../models/User.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// 📌 Registrar usuario
+// POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ error: "El correo ya está registrado" });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword });
+    const hashed = await bcrypt.hash(password, 10);
+    const user = new User({ name, email, password: hashed });
     await user.save();
 
-    res.json({ message: "Usuario registrado correctamente" });
-  } catch (error) {
-    res.status(500).json({ error: "Error al registrar usuario" });
+    return res.json({ message: "Usuario registrado correctamente" });
+  } catch (err) {
+    return res.status(500).json({ error: "Error al registrar usuario" });
   }
 });
 
-// 📌 Login
+// POST /api/auth/login
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Credenciales inválidas" });
 
@@ -39,22 +43,15 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({ token, name: user.name, email: user.email });
-  } catch (error) {
-    res.status(500).json({ error: "Error al iniciar sesión" });
+    return res.json({ token, name: user.name, email: user.email });
+  } catch (err) {
+    return res.status(500).json({ error: "Error al iniciar sesión" });
   }
 });
 
-// 📌 Obtener perfil del usuario autenticado
+// GET /api/auth/me
 router.get("/me", authMiddleware, (req, res) => {
-  try {
-    res.json({
-      name: req.user.username,
-      email: req.user.email
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener perfil" });
-  }
+  return res.json({ name: req.user.username, email: req.user.email });
 });
 
 export default router;
